@@ -1,0 +1,34 @@
+---
+- name: check if directory exists
+  become: yes
+  stat:
+    path: "{{ phpmyadmin_path }}"
+  register: phpmyadmin_path_info
+
+- name: install phpmyadmin
+  become: yes
+  composer:
+    command: create-project
+    arguments: phpmyadmin/phpmyadmin {{ phpmyadmin_path }}
+    working_dir: /var/www
+    prefer_dist: yes
+  when: phpmyadmin_path_info.stat.isdir is undefined or not phpmyadmin_path_info.stat.isdir
+
+- name: prepare upload/save directories
+  become: yes
+  file:
+    state: directory
+    path: "{{ phpmyadmin_path }}/{{ item }}"
+    owner: www-data
+    group: www-data
+    mode: 0775
+  with_items:
+    - upload
+    - save
+
+- name: configure phpmyadmin
+  become: yes
+  template:
+    src: config.inc.php
+    dest: "{{ phpmyadmin_path }}/config.inc.php"
+    validate: "php -l %s"
